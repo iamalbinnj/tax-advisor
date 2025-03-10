@@ -1,0 +1,12 @@
+torch
+transformers
+accelerate
+bitsandbytes
+sentence-transformers
+faiss-cpu
+chromadb
+langchain
+langchain-community
+unstructured
+langchain-huggingface
+langchain-chroma
