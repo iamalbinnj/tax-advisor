@@ -71,7 +71,7 @@ llm = HuggingFacePipeline(pipeline=text_generation_pipeline)
 # ✅ Create prompt template
 prompt_template = PromptTemplate(
     input_variables=["context", "question"],
-    template="{context}\n\nProvide a clear and concise answer to the following question:\n{question}\n\nAnswer:"
+    template="{context}\n\nProvide a clear and concise answer based on India's tax laws:\n{question}\n\nAnswer (India-Specific):"
 )
 
 # ✅ Preload LLM chain for faster response

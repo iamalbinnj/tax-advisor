@@ -117,7 +117,7 @@ export default function ChatInterface() {
           />
           <button
             type="submit"
-            className="absolute bottom-3 right-3 p-2 bg-blue-600 rounded-full hover:bg-blue-700 disabled:opacity-50"
+            className="absolute bottom-3 right-3 p-2 cursor-pointer bg-blue-600 rounded-full hover:bg-blue-700 disabled:opacity-50"
             disabled={!input.trim() || loading}
           >
             {loading ? "..." : "Send"}
