@@ -2,7 +2,7 @@ torch
 transformers
 accelerate
 bitsandbytes
-sentence-transformers
+sentence-transformers>=2.2.2
 faiss-cpu
 chromadb
 langchain
@@ -10,3 +10,5 @@ langchain-community
 unstructured
 langchain-huggingface
 langchain-chroma
+numpy>=1.24.0
+scikit-learn>=1.3.0
