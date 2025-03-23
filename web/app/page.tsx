@@ -34,35 +34,40 @@ export default function ChatInterface() {
     setShowWelcome(false);
     setLoading(true);
 
-    // Add a temporary AI "thinking" message
-    const thinkingMessage: Message = {
+    // AI Placeholder
+    const aiMessage: Message = {
       id: (Date.now() + 1).toString(),
-      content: "AI is thinking...",
+      content: "",
       sender: "ai",
       timestamp: new Date(),
     };
-    setMessages((prev) => [...prev, thinkingMessage]);
+    setMessages((prev) => [...prev, aiMessage]);
 
     try {
-      const response = await fetch("http://localhost:8000/q/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: userMessage.content }),
-      });
+      const response = await fetch(`http://localhost:8000/query?q=${encodeURIComponent(userMessage.content)}`);
 
-      const data = await response.json();
+      if (!response.body) throw new Error("No response body");
 
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === thinkingMessage.id ? { ...msg, content: data.answer || "Sorry, I couldn't process that." } : msg
-        )
-      );
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let aiResponseText = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        aiResponseText += decoder.decode(value, { stream: true });
+
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === aiMessage.id ? { ...msg, content: aiResponseText } : msg
+          )
+        );
+      }
     } catch (error) {
       console.error("Error fetching AI response:", error);
-
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.id === thinkingMessage.id ? { ...msg, content: "Error fetching response. Please try again." } : msg
+          msg.id === aiMessage.id ? { ...msg, content: "Error fetching response. Please try again." } : msg
         )
       );
     } finally {
@@ -81,11 +86,11 @@ export default function ChatInterface() {
   }, [messages]);
 
   return (
-    <div className="container max-w-screen-2x1 mx-auto xl:px-24 py-16 flex flex-col h-screen bg-[#1a1a1a] text-white">
+    <div className="container max-w-screen-2xl mx-auto xl:px-24 py-16 flex flex-col h-screen bg-[#1a1a1a] text-white">
       <div className={`flex-1 p-4 space-y-4 ${showWelcome ? "overflow-hidden" : "overflow-y-auto"}`}>
         {showWelcome ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <h2 className="text-2xl font-bold mb-2">Hi, I m Tax Advisor.</h2>
+            <h2 className="text-2xl font-bold mb-2">Hi, I'm Tax Advisor.</h2>
             <p className="text-white/70 mb-8">How can I help you today?</p>
           </div>
         ) : (
