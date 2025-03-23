@@ -1,108 +1,38 @@
-import os
-from dotenv import load_dotenv
+import asyncio
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, pipeline
-from langchain_community.document_loaders import DirectoryLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
+from fastapi.responses import StreamingResponse
 from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFacePipeline
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_core.prompts import PromptTemplate
+from langchain_ollama import OllamaEmbeddings, OllamaLLM
 
-# Load environment variables
-load_dotenv()
-
-# Paths from environment variables
-DATA_DIR = os.getenv("DATA_DIR", "E:/project/tax_advisor/data")
-MODEL_DIR = os.getenv("MODEL_DIR", "E:/project/tax_advisor/model/local_model")
-CHROMA_DB_DIR = os.getenv("CHROMA_DB_DIR", "E:/project/tax_advisor/model/chroma_db")
-
-# ✅ Load and process documents
-def load_docs(directory):
-    loader = DirectoryLoader(directory)
-    return loader.load()
-
-docs = load_docs(DATA_DIR)
-
-def split_docs(doc, chunk_size=512, chunk_overlap=20):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-    return text_splitter.split_documents(doc)
-
-docs = split_docs(docs)
-
-# ✅ Initialize embeddings and vector store
-embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-vectordb = Chroma.from_documents(docs, embeddings, persist_directory=CHROMA_DB_DIR, collection_metadata={"hnsw:space": "cosine"})
-new_db = Chroma(persist_directory=CHROMA_DB_DIR, embedding_function=embeddings)
-
-def get_similar_docs(query, k=1, score=False):
-    return new_db.similarity_search_with_score(query, k=k) if score else new_db.similarity_search(query, k=k)
-
-# ✅ Check if GPU is available
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
-# ✅ Use 8-bit quantization to speed up inference & reduce memory
-bnb_config = BitsAndBytesConfig(load_in_8bit=True)
-
-print("🚀 Loading Mistral-7B-Instruct model...")
-
-# ✅ Load model ONCE at startup & keep it in memory
-model = AutoModelForCausalLM.from_pretrained(MODEL_DIR, quantization_config=bnb_config).to(device)
-tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR)
-
-# ✅ Optimized text generation pipeline
-text_generation_pipeline = pipeline(
-    model=model,
-    tokenizer=tokenizer,
-    task="text-generation",
-    temperature=0.2,
-    do_sample=True,
-    repetition_penalty=1.1,
-    return_full_text=False,  # Prevents repeating the prompt
-    max_new_tokens=512,  # Increase to allow longer responses
-)
-
-llm = HuggingFacePipeline(pipeline=text_generation_pipeline)
-
-# ✅ Create prompt template
-prompt_template = PromptTemplate(
-    input_variables=["context", "question"],
-    template="{context}\n\nProvide a clear and concise answer based on India's tax laws:\n{question}\n\nAnswer (India-Specific):"
-)
-
-# ✅ Preload LLM chain for faster response
-chain = create_stuff_documents_chain(llm, prompt_template)
-
-# ✅ Function to get answers
-def get_answer(query):
-    similar_docs = get_similar_docs(query)
-    answer = chain.invoke({"context": similar_docs, "question": query})
-    return answer
-
-# ✅ FastAPI setup
+# Initialize FastAPI app
 app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"], 
-)
+# Model and Vector Database Configuration
+model_name = "zephyr:7b-beta-q4_K_S"
+llm = OllamaLLM(model=model_name, max_tokens=200)
 
-class QueryRequest(BaseModel):
-    query: str
+persist_directory = "E:/project/tax_advisor/model/taxadvisordb_v1-0"
+embeddings = OllamaEmbeddings(model="nomic-embed-text")
+vector_db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
 
-@app.post("/q/")
-def get_answer_api(request: QueryRequest):
-    result = get_answer(request.query)
-    return {"query": request.query, "answer": result}
+retriever = vector_db.as_retriever(search_kwargs={"k": 2})
 
-if __name__ == "__main__":
-    import uvicorn
-    print("🚀 API is running at http://localhost:8000")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+async def generate_answer(query: str):
+    """ Asynchronously retrieves documents and streams LLM response """
+    docs = await asyncio.to_thread(retriever.invoke, query)
+    context = "\n\n".join([doc.page_content for doc in docs])
+    
+    prompt = f"You are a tax expert. Use the following information to answer the user's question:\n\n{context}\n\nQuery: {query}\nAnswer:"
+
+    # Stream response from LLM
+    async def stream():
+        async for chunk in llm.astream(prompt):  
+            yield chunk  # Yield each chunk as it's generated
+
+    return StreamingResponse(stream(), media_type="text/plain")
+
+# API Route for Querying
+@app.get("/query")
+async def query_llm(q: str):
+    return await generate_answer(q)
+

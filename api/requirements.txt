@@ -1,11 +1,6 @@
-fastapi
-uvicorn
-torch
-transformers
-bitsandbytes
-langchain
-langchain-community
-langchain-huggingface
-langchain-chroma
-chromadb
-sentence-transformers
+fastapi 
+uvicorn 
+langchain 
+langchain_ollama 
+langchain_chroma 
+ollama
