@@ -90,13 +90,13 @@ export default function ChatInterface() {
       <div className={`flex-1 p-4 space-y-4 ${showWelcome ? "overflow-hidden" : "overflow-y-auto"}`}>
         {showWelcome ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <h2 className="text-2xl font-bold mb-2">Hi, I'm Tax Advisor.</h2>
+            <h2 className="text-2xl font-bold mb-2">Hi, I m Tax Advisor.</h2>
             <p className="text-white/70 mb-8">How can I help you today?</p>
           </div>
         ) : (
           messages.map((message) => (
             <div key={message.id} className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`p-3 rounded-lg max-w-xl ${message.sender === "user" ? "bg-blue-600" : "bg-gray-700"}`}>
+              <div className={`p-3 rounded-lg max-w-xl ${message.sender === "user" ? "bg-blue-600" : "!max-w-11/12 bg-gray-700"}`}>
                 {message.content}
               </div>
             </div>
