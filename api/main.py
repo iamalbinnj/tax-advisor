@@ -20,7 +20,7 @@ app.add_middleware(
 model_name = "zephyr:7b-beta-q4_K_S"
 llm = OllamaLLM(model=model_name, max_tokens=200)
 
-persist_directory = "E:/project/tax_advisor/model/taxadvisordb_v1-0"
+persist_directory = "E:/project/tax_advisor/model/taxadvisor_db1"
 embeddings = OllamaEmbeddings(model="nomic-embed-text")
 vector_db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
 
