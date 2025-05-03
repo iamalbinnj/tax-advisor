@@ -1,0 +1,11 @@
+# Ignore everything
+*
+
+# But allow these folders and files
+!dataset/
+!model/
+!Dockerfile
+!.dockerignore
+
+# Exclude .env files (don't copy them to Docker image)
+.env
